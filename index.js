@@ -68,6 +68,40 @@ async function run() {
       res.send(result);
     })
 
+    // set user role  
+
+    app.post('/user/role/:id',async(req,res) => {
+      const roleValue = req.body.roleValue;
+      const id = req.params.id
+      const filter = {_id : new ObjectId(id)}
+      const updateDog = {
+        $set : {
+          role : roleValue
+        }
+      }
+
+      const reuslt = await usersDB.updateOne(filter,updateDog);
+      res.send(reuslt);
+
+    })
+
+    // get userrole 
+
+    app.get('/user/role',async(req,res) => {
+      const email = req.query.email;
+      const query = {email : email};
+      const result = await usersDB.findOne(query);
+      if(result?.role === 'admin'){
+        res.send({userRole : 'admin'})
+      }else if(result?.role === 'surveyor'){
+        res.send({userRole : 'surveyor'})
+      }else if(result?.role === 'pro_user'){
+        res.send({userRole : 'pro_user'})
+      }else{
+        res.send({userRole : 'user'})
+      }
+    })
+
     // survey releted api 
 
     app.get('/surveyes',async(req,res) => {
