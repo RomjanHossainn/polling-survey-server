@@ -55,6 +55,19 @@ async function run() {
 
     })
 
+    app.get('/users',async(req,res) => {
+      const result = await usersDB.find().toArray();
+      res.send(result);
+    })
+
+    // delete user 
+
+    app.delete('/user/:id',async(req,res) => {
+      const id = req.params.id;
+      const result = await usersDB.deleteOne({_id : new ObjectId(id)})
+      res.send(result);
+    })
+
     // survey releted api 
 
     app.get('/surveyes',async(req,res) => {
