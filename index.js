@@ -104,6 +104,12 @@ async function run() {
 
     // survey releted api 
 
+    app.post('/surveys',async(req,res) => {
+      const data = req.body;
+      const result = await surbeyesDB.insertOne(data)
+      res.send(result);
+    })
+
     app.get('/surveyes',async(req,res) => {
       console.log(req.query)
       const page = parseInt(req.query.page);
