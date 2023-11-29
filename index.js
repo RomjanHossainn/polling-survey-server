@@ -45,11 +45,42 @@ async function run() {
     const adminFeedBackDB = client.db("surveyDB").collection('adminFeedBacks');
 
 
+    // token middleware 
+
+    const veryfyToken = (req,res,next) => {
+
+      if(!req.headers.authorization){
+        return res.status(401).send({message : 'forbidden access beta shor'})
+      }
+
+      const token = req.headers.authorization.split(' ')[1];
+
+      jwt.verify(token,process.env.JWT_SECRET,(err,decoded) => {
+        if(err){
+          console.log(err)
+          return res.status(401).send({message : 'forbiden access'})
+        }
+        req.decoded = decoded;
+        next()
+
+      })
+
+    }
+
     // jwt releted api 
+
+    app.post('/jwt',async(req,res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({token})
+    })
 
     // user releted api 
 
     app.post('/users',async(req,res) => {
+
       const user = req.body;
       const email = user.email;
       const query = {email : email}
@@ -63,18 +94,18 @@ async function run() {
 
     })
 
-    app.get('/users',async(req,res) => {
+    app.get("/users", veryfyToken,async (req, res) => {
       const result = await usersDB.find().toArray();
       res.send(result);
-    })
+    });
 
     // delete user 
 
-    app.delete('/user/:id',async(req,res) => {
+    app.delete("/user/:id",async (req, res) => {
       const id = req.params.id;
-      const result = await usersDB.deleteOne({_id : new ObjectId(id)})
+      const result = await usersDB.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
-    })
+    });
 
     // set user role  
 
@@ -95,7 +126,13 @@ async function run() {
 
     // get userrole 
 
-    app.get('/user/role',async(req,res) => {
+    app.get('/user/role',veryfyToken,async(req,res) => {
+
+      if (req.query.email !== req.decoded.email) {
+        return res.status(403).send({ message: "anauthorize" });
+      }
+
+
       const email = req.query.email;
       const query = {email : email};
       const result = await usersDB.findOne(query);
@@ -119,7 +156,7 @@ async function run() {
     })
 
     app.get('/surveyes',async(req,res) => {
-      console.log(req.query)
+
       const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
       const result = await surbeyesDB
@@ -132,7 +169,11 @@ async function run() {
 
     // my posted survey get 
 
-    app.get("/mypostedsurvey",async(req,res) => {
+    app.get("/mypostedsurvey",veryfyToken,async(req,res) => {
+
+      if(req.query.email !== req.decoded.email){
+        return res.status(403).send({message : 'unauthorize'})
+      }
       const email = req.query.email;
       const result = await surbeyesDB.find({email : email}).toArray()
       res.send(result);
@@ -153,7 +194,7 @@ async function run() {
 
     // surveyStatus 
 
-    app.patch("/surveystatus/:id",async(req,res) => {
+    app.patch("/surveystatus/:id",veryfyToken,async(req,res) => {
       const id = req.params.id;
       const filter = {_id : new ObjectId(id)}
       const updateDog = {
@@ -167,7 +208,7 @@ async function run() {
 
     });
 
-    app.post("/admin/feedback/message",async(req,res) => {
+    app.post("/admin/feedback/message",veryfyToken,async(req,res) => {
       const data = req.body;
       const result = await adminFeedBackDB.insertOne(data)
       res.send(result);
@@ -175,7 +216,12 @@ async function run() {
 
     // get adminfeadbaclk
 
-    app.get("/adminfeadback",async(req,res) => {
+    app.get("/adminfeadback",veryfyToken,async(req,res) => {
+
+      if(req.query.email !== req.decoded.email){
+        return res.status(403).send({message : "aunauthorize"})
+      }
+
       const id = req.query.id;
       const email = req.query.email;
       const result = await adminFeedBackDB.findOne({surveyId : id,email : email })
@@ -185,7 +231,12 @@ async function run() {
 
     // user feadback 
 
-    app.get("/usersfeadback",async(req,res) => {
+    app.get("/usersfeadback",veryfyToken,async(req,res) => {
+
+      if(req.query.email !== req.decoded.email){
+        return res.status(401).send({message : 'aunauthorize'})
+      }
+
       const {id,email} = req.query;
       
       const result = await surveyVoteChecking.findOne({surveyId : id,email : email})
