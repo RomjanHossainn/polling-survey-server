@@ -2,8 +2,12 @@ const express = require('express');
 
 const app = express();
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE);
 const port = process.env.PORT || 5000;
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+
+
 
 app.use(cors())
 app.use(express.json())
@@ -38,6 +42,10 @@ async function run() {
     const usersDB = client.db('surveyDB').collection('users')
     const surbeyesDB = client.db('surveyDB').collection('surveys');
     const surveyVoteChecking = client.db("surveyDB").collection('impreetion');
+    const adminFeedBackDB = client.db("surveyDB").collection('adminFeedBacks');
+
+
+    // jwt releted api 
 
     // user releted api 
 
@@ -107,16 +115,28 @@ async function run() {
     app.post('/surveys',async(req,res) => {
       const data = req.body;
       const result = await surbeyesDB.insertOne(data)
-      res.send(result);
+      res.send(result)
     })
 
     app.get('/surveyes',async(req,res) => {
       console.log(req.query)
       const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
-      const result = await surbeyesDB.find().skip(page * size).limit(size).toArray();
+      const result = await surbeyesDB
+        .find({ status : 'publish'})
+        .skip(page * size)
+        .limit(size)
+        .toArray();
       res.send(result)
     })
+
+    // my posted survey get 
+
+    app.get("/mypostedsurvey",async(req,res) => {
+      const email = req.query.email;
+      const result = await surbeyesDB.find({email : email}).toArray()
+      res.send(result);
+    });
 
     app.get("/surveyCount",async(req,res) => {
       const surveyCount = await surbeyesDB.estimatedDocumentCount();
@@ -131,15 +151,57 @@ async function run() {
       res.send(result);
     });
 
+    // surveyStatus 
+
+    app.patch("/surveystatus/:id",async(req,res) => {
+      const id = req.params.id;
+      const filter = {_id : new ObjectId(id)}
+      const updateDog = {
+        $set : {
+          status : 'unpublish'
+        }
+      }
+
+      const result = await surbeyesDB.updateOne(filter,updateDog);
+      res.send(result);
+
+    });
+
+    app.post("/admin/feedback/message",async(req,res) => {
+      const data = req.body;
+      const result = await adminFeedBackDB.insertOne(data)
+      res.send(result);
+    });
+
+    // get adminfeadbaclk
+
+    app.get("/adminfeadback",async(req,res) => {
+      const id = req.query.id;
+      const email = req.query.email;
+      const result = await adminFeedBackDB.findOne({surveyId : id,email : email })
+      res.send(result);
+    });
+
+
+    // user feadback 
+
+    app.get("/usersfeadback",async(req,res) => {
+      const {id,email} = req.query;
+      
+      const result = await surveyVoteChecking.findOne({surveyId : id,email : email})
+      res.send(result);
+    });
 
     // most voted survey 
 
     app.get("/mostvotesurvey",async(req,res) => {
       const result = await surbeyesDB.find({
-        
+      status : 'publish'  
       }).sort({vote : -1}).limit(6).toArray();
       res.send(result);
     });
+
+
 
 
     // like and dislike 
@@ -242,6 +304,34 @@ async function run() {
       res.send(result)
 
     })
+
+
+    // payment releted api
+
+    app.post('/create-payment-intent',async(req,res) => {
+      const { price } = req.body;
+      const amountTk = parseInt(price * 100)
+
+      try{
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amountTk,
+          currency: "usd",
+          payment_method_type: ["card"],
+          automatic_payment_methods: {
+            enabled: true,
+          },
+        });
+
+        res.send({
+        clientSecret: paymentIntent.client_secret,
+        });
+      }catch(erorr) {
+        console.log(erorr)
+      }
+
+    })
+
+
 
     // ans post 
 
