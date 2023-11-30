@@ -33,7 +33,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
 
     // database 
@@ -42,6 +42,7 @@ async function run() {
     const surbeyesDB = client.db('surveyDB').collection('surveys');
     const surveyVoteChecking = client.db("surveyDB").collection('impreetion');
     const adminFeedBackDB = client.db("surveyDB").collection('adminFeedBacks');
+    const commentsDB = client.db("surveyDB").collection("comments");
 
 
     // token middleware 
@@ -125,7 +126,7 @@ async function run() {
 
     // get userrole 
 
-    app.get('/user/role',veryfyToken,async(req,res) => {
+    app.get('/user/role',async(req,res) => {
 
       if (req.query.email !== req.decoded.email) {
         return res.status(403).send({ message: "anauthorize" });
@@ -209,8 +210,7 @@ async function run() {
         }
       }
       
-      console.log(sortData)
-
+      
       
 
     })
@@ -243,7 +243,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/updatesurvey/:id",async(req,res) => {
+    app.patch("/updatesurvey/:id",veryfyToken,async(req,res) => {
       const data=  req.body;
       const id= req.params.id;
 
@@ -458,6 +458,20 @@ async function run() {
 
     })
 
+    app.post("/comments",veryfyToken,async(req,res) => {
+      const data = req.body;
+      const result = await commentsDB.insertOne(data)
+      res.send(result)
+    });
+
+
+    app.get("/comments/:id",async(req,res) =>{
+     
+      const id = req.params.id;
+      const query = {surveyId : id};
+      const result = await commentsDB.find(query).toArray();
+      res.send(result);
+    });
 
 
     // ans post 
@@ -467,10 +481,10 @@ async function run() {
 
     // });
     
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
