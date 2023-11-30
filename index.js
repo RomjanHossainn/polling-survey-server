@@ -8,7 +8,6 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
 
-
 app.use(cors())
 app.use(express.json())
 
@@ -151,20 +150,69 @@ async function run() {
 
     app.post('/surveys',async(req,res) => {
       const data = req.body;
+      // const date = new Date()
+      // console.log(date)
+      // const mainDate = `${date.getFullYear()}-${date.getMonth()}-${date.getDay()}`
+      data.timestamp = new Date();
       const result = await surbeyesDB.insertOne(data)
       res.send(result)
     })
 
     app.get('/surveyes',async(req,res) => {
+      let sortData = parseFloat(req.query.sorting)
+      if(isNaN(sortData)){
+        
+        if (!req.query.category || req.query.category === "all") {
+          // const page = parseInt(req.query.page);
+          // const size = parseInt(req.query.size);
+          const result = await surbeyesDB
+            .find({ status: "publish" })
+            
+            // .skip(page * size)
+            // .limit(size)
+            .toArray();
+          res.send(result);
+        } else {
+          // const page = parseInt(req.query.page);
+          // const size = parseInt(req.query.size);
+          const result = await surbeyesDB
+            .find({ status: "publish", category: req.query.category })
+            
+            // .skip(page * size)
+            // .limit(size)
+            .toArray();
+          res.send(result);
+        }
+      }else{
+        if (!req.query.category || req.query.category === "all") {
+          // const page = parseInt(req.query.page);
+          // const size = parseInt(req.query.size);
+          const result = await surbeyesDB
+            .find({ status: "publish" })
+            .sort({vote : sortData})
 
-      const page = parseInt(req.query.page);
-      const size = parseInt(req.query.size);
-      const result = await surbeyesDB
-        .find({ status : 'publish'})
-        .skip(page * size)
-        .limit(size)
-        .toArray();
-      res.send(result)
+            // .skip(page * size)
+            // .limit(size)
+            .toArray();
+          res.send(result);
+        } else {
+          // const page = parseInt(req.query.page);
+          // const size = parseInt(req.query.size);
+          const result = await surbeyesDB
+            .find({ status: "publish", category: req.query.category })
+            .sort({vote : sortData})
+
+            // .skip(page * size)
+            // .limit(size)
+            .toArray();
+          res.send(result);
+        }
+      }
+      
+      console.log(sortData)
+
+      
+
     })
 
     // my posted survey get 
@@ -179,10 +227,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/surveyCount",async(req,res) => {
-      const surveyCount = await surbeyesDB.estimatedDocumentCount();
-      res.send({surveyCount})
-    });
+
+   
+
+    // app.get("/surveyCount",async(req,res) => {
+    //   const surveyCount = await surbeyesDB.estimatedDocumentCount();
+    //   res.send({surveyCount})
+    // });
 
     // survey deatils 
     app.get("/surveyedetails/:id",async(req,res) => {
@@ -190,6 +241,24 @@ async function run() {
       const query = {_id : new ObjectId(id)}
       const result = await surbeyesDB.findOne(query);
       res.send(result);
+    });
+
+    app.patch("/updatesurvey/:id",async(req,res) => {
+      const data=  req.body;
+      const id= req.params.id;
+
+      const filter = {_id: new ObjectId(id)}
+
+      const updateInfo = {
+        $set : {
+          title : data.title,
+          description : data.description
+        }
+      }
+
+      const result = await surbeyesDB.updateOne(filter,updateInfo);
+      res.send(result);
+
     });
 
     // surveyStatus 
@@ -252,6 +321,13 @@ async function run() {
       res.send(result);
     });
 
+    // recent create survey 
+
+    app.get("/recentcreatesurvey",async(req,res) => {
+      const result = await surbeyesDB.find().sort({timestamp : -1}).limit(6).toArray();
+      res.send(result);
+    });
+
 
 
 
@@ -264,7 +340,7 @@ async function run() {
       const findVoteCheck = await surveyVoteChecking.findOne({
         surveyId: voteChecker.surveyId,
         userId: voteChecker.userId,
-        impretion : voteChecker.impretion,
+        impretion : voteChecker.impretion
       });
 
       if (findVoteCheck) {
